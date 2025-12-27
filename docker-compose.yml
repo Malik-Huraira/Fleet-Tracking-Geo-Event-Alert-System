@@ -69,7 +69,7 @@ services:
   # ✅ Backend (Spring Boot)
   backend:
     build:
-      context: ./backend/tracking
+      context: ./backend
       dockerfile: Dockerfile
     container_name: fleet-backend
     depends_on:

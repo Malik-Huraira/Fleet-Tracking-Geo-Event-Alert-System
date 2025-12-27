@@ -1,0 +1,233 @@
+/* ================= Fonts ================= */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap");
+
+/* ================= Tailwind ================= */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ================= Theme Tokens (Light Mode Only) ================= */
+@layer base {
+  :root {
+    --background: 210 25% 97%;
+    --foreground: 220 25% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 15%;
+    --popover: 210 25% 98%;
+    --popover-foreground: 220 25% 15%;
+
+    --primary: 174 72% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 18% 85%;
+    --secondary-foreground: 220 25% 20%;
+
+    --muted: 210 18% 90%;
+    --muted-foreground: 220 15% 45%;
+
+    --accent: 42 87% 55%;
+    --accent-foreground: 220 25% 10%;
+
+    --destructive: 0 72% 50%;
+    --success: 174 72% 40%;
+    --warning: 42 87% 50%;
+
+    --border: 220 18% 88%;
+    --ring: 174 72% 40%;
+    --radius: 1.25rem;
+
+    --fleet-online: 174 72% 40%;
+    --fleet-idle: 42 87% 50%;
+    --fleet-offline: 0 60% 50%;
+    --fleet-geofence: 280 65% 55%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(174 72% 50%) 0%, hsl(168 65% 45%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 25% 97%) 100%);
+    --gradient-glow: radial-gradient(ellipse at center, hsl(174 72% 50% / 0.1) 0%, transparent 70%);
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+/* ================= Components ================= */
+@layer components {
+  .glass-panel {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-lg;
+  }
+
+  .status-online {
+    @apply bg-success text-white;
+  }
+
+  .status-idle {
+    @apply bg-warning text-black;
+  }
+
+  .status-offline {
+    @apply bg-destructive text-white;
+  }
+
+  .vehicle-marker {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .vehicle-marker-highlighted {
+    animation: highlight-pulse 2s ease-in-out infinite;
+    z-index: 1000 !important;
+  }
+}
+
+/* ================= Utilities ================= */
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-primary);
+  }
+
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulseSubtle 2s ease-in-out infinite;
+  }
+}
+
+/* ================= Animations ================= */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulseSubtle {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes highlight-pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 0.7;
+  }
+}
+
+/* ================= Leaflet ================= */
+.leaflet-container {
+  background: hsl(var(--background)) !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 12px !important;
+}
+
+.leaflet-popup-tip {
+  background: hsl(var(--card)) !important;
+}
+
+.leaflet-control-zoom a {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* ================= GeoFence ================= */
+.geofence-polygon {
+  transition: fill-opacity 0.2s ease, stroke-width 0.2s ease;
+}
+
+.geofence-tooltip {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  font-weight: 500;
+  font-size: 13px;
+  color: hsl(var(--foreground)) !important;
+}
+
+.geofence-label {
+  background: rgba(30, 30, 40, 0.9);
+  border: none;
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.geofence-polygon {
+  transition: all 0.3s ease;
+}
+
+@keyframes pulse-once {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.3);
+    /* Matches --primary (green) */
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+}
+
+.animate-pulse-once {
+  animation: pulse-once 1.5s ease-out;
+}
+
+/* ================= Removed ================= */
+/* All dark mode (:root .dark, @media (prefers-color-scheme: dark)) sections have been completely removed */
+/* No more dark overrides or media queries */
