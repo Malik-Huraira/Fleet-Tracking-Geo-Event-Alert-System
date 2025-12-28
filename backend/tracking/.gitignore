@@ -3,19 +3,9 @@ target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-
-# IDE
-.idea/
-*.iws
-*.iml
-*.ipr
-
-# Maven
 .mvn/
 mvnw
 mvnw.cmd
-
-# Build
 **/build/
 **/out/
 
@@ -23,10 +13,28 @@ mvnw.cmd
 logs/
 *.log
 
-# Temporary
+# Temporary files
 tmp/
 temp/
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
+
+# IDE / Editor
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/*
+!.vscode/extensions.json
+
+# Frontend build artifacts (if any)
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Environment variables
+.env
+.env.local

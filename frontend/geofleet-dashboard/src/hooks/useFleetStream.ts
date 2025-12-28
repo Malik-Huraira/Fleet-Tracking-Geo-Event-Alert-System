@@ -392,4 +392,3 @@ export const useVehicleById = (vehicles: Vehicle[], id: string) =>
 
 export const useAlertsByVehicleId = (alerts: Alert[], id: string) =>
   alerts.filter(a => a.vehicleId === id);
-

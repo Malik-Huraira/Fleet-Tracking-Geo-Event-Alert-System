@@ -1,21 +1,45 @@
-# Backend
+# Backend (Spring Boot / Maven)
 backend/tracking/target/
 backend/tracking/.mvn/
 backend/tracking/mvnw
 backend/tracking/mvnw.cmd
+backend/tracking/out/
+backend/tracking/**/*.log
 
-# Frontend
+# Frontend (React / Vite / Node)
 frontend/node_modules/
 frontend/dist/
+frontend/.env*
+frontend/.env.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
 
 # Docker
 .docker/
-
-# OS / Editor
-.DS_Store
-Thumbs.db
-.idea/
-*.iml
+docker-compose.override.yml
 
 # Logs
 *.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Environment variables
+.env
