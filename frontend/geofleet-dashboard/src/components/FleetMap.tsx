@@ -3,6 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Vehicle } from '@/types/fleet';
 import { formatDistanceToNow } from 'date-fns';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 interface GeoFenceDTO {
   id: number;
@@ -88,17 +89,25 @@ export function FleetMap({ vehicles, highlightedVehicleId, onVehicleSelect }: Fl
   const [geofences, setGeofences] = useState<GeoFenceDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    setIsLoading(true);
-    fetch('/api/geofences/geojson')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch');
-        return res.json();
-      })
-      .then((data: GeoFenceDTO[]) => setGeofences(data))
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
-  }, []);
+useEffect(() => {
+  setIsLoading(true);
+  fetch(`${API_BASE_URL}/geofences/geojson`)
+    .then(res => {
+      if (!res.ok) {
+        console.error('Geofences fetch failed:', res.status, res.statusText);
+        throw new Error(`HTTP ${res.status}`);
+      }
+      return res.json();
+    })
+    .then((data: GeoFenceDTO[]) => {
+      console.log('✅ Geofences successfully loaded:', data);
+      setGeofences(data);
+    })
+    .catch(err => {
+      console.error('Failed to load geofences:', err);
+    })
+    .finally(() => setIsLoading(false));
+}, []);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;

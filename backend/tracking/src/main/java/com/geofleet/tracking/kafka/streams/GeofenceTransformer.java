@@ -93,6 +93,7 @@ public class GeofenceTransformer implements Transformer<String, VehicleEventDTO,
         try {
             Map<String, Object> details = new HashMap<>();
             details.put("geofence", geofenceName);
+            details.put("zone", geofenceName);
             details.put("lat", event.getLat());
             details.put("lng", event.getLng());
             details.put("action", alertType == AlertType.GEOFENCE_ENTER ? "entered" : "exited");

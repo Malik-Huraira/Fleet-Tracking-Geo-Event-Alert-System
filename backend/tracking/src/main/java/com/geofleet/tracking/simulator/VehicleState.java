@@ -95,13 +95,22 @@ public class VehicleState {
     public void move() {
         timestamp = LocalDateTime.now();
 
+        // === FORCE COMPLETE IDLE FOR TRK-05 (for testing idle alerts) ===
+        if (vehicleId.equals("TRK-05")) {
+            speedKph = 0.0; // Always stopped
+            heading = 0.0; // No direction
+            System.out.println("🛑 [" + vehicleId + "] FORCED PERMANENT IDLE - Testing strict idle detection");
+            return; // Skip all movement logic
+        }
+        // === END FORCE IDLE ===
+
         // Idle simulation (realistic stops at traffic)
         if (random.nextDouble() < 0.15) { // 15% chance per update → more frequent stops
             speedKph = 0.0;
             idleCounter++;
 
             // Higher chance to enter long idle after ~20 seconds of stopping
-            if (idleCounter > 10 && !inLongIdleMode && random.nextDouble() < 1.0) { // ← 100% chance
+            if (idleCounter > 10 && !inLongIdleMode && random.nextDouble() < 1.0) {
                 inLongIdleMode = true;
                 longIdleTicks = 0;
                 System.out.println("😴 [" + vehicleId + "] ENTERED LONG IDLE – will stay stopped for testing");
@@ -109,38 +118,33 @@ public class VehicleState {
 
             if (inLongIdleMode) {
                 longIdleTicks++;
-                speedKph = 0.0; // Stay stopped
+                speedKph = 0.0;
 
-                // Stay in long idle for at least 10 minutes (300 updates @ 2s = 10 min)
-                // Resume only after 12–20 minutes for variety
-                if (longIdleTicks > 300 && random.nextDouble() < 0.1) { // 10% chance to resume
+                if (longIdleTicks > 300 && random.nextDouble() < 0.1) {
                     inLongIdleMode = false;
                     idleCounter = 0;
                     speedKph = 40 + random.nextDouble() * 60;
                     System.out.println("🚙 [" + vehicleId + "] RESUMING after long idle");
                 }
-                return; // Skip sending event → simulates real device offline
+                return;
             }
         } else {
-            // Normal movement
             if (idleCounter > 0 && !inLongIdleMode) {
                 System.out.println("🚙 [" + vehicleId + "] Resuming from short stop");
                 idleCounter = 0;
             }
 
-            // Follow route waypoints
+            // Normal movement logic (unchanged)
             if (currentRoute != null && !currentRoute.isEmpty()) {
                 double[] target = currentRoute.get(routeIndex);
                 double targetLat = target[0];
                 double targetLng = target[1];
 
-                // Calculate heading towards target
                 double deltaLat = targetLat - lat;
                 double deltaLng = targetLng - lng;
                 double distance = Math.sqrt(deltaLat * deltaLat + deltaLng * deltaLng);
 
-                if (distance < 0.0005) { // Close enough to waypoint (~50m)
-                    // Move to next waypoint
+                if (distance < 0.0005) {
                     if (forward) {
                         routeIndex++;
                         if (routeIndex >= currentRoute.size()) {
@@ -155,27 +159,23 @@ public class VehicleState {
                         }
                     }
                 } else {
-                    // Move towards target
                     heading = Math.toDegrees(Math.atan2(deltaLng, deltaLat));
                     if (heading < 0)
                         heading += 360;
 
-                    double moveDistance = (speedKph / 3600.0) * 2.0 / 111.0; // 2s update
+                    double moveDistance = (speedKph / 3600.0) * 2.0 / 111.0;
                     lat += moveDistance * Math.cos(Math.toRadians(heading));
                     lng += moveDistance * Math.sin(Math.toRadians(heading));
                 }
             }
-            
-            // Log current position for debugging
+
             System.out.println("[" + vehicleId + "] At waypoint " + routeIndex + " (" + lat + ", " + lng + ")");
 
-            // Realistic but allows speeding
-            speedKph += (random.nextDouble() - 0.5) * 25.0; // ±12.5 kph change
-            speedKph = Math.max(20, Math.min(120, speedKph)); // Min 20 to avoid crawling
-            
-            // For specific vehicles, enforce higher speeds for testing speeding alerts
+            speedKph += (random.nextDouble() - 0.5) * 25.0;
+            speedKph = Math.max(20, Math.min(120, speedKph));
+
             if (vehicleId.equals("TRK-01")) {
-                speedKph = 90 + random.nextDouble() * 30; // 90-120 kph
+                speedKph = 90 + random.nextDouble() * 30;
             }
         }
     }

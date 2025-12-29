@@ -38,6 +38,7 @@ public class VehicleEventStreamProcessor {
     private static final String VEHICLE_GPS_TOPIC = "vehicle-gps";
     private static final String VEHICLE_ALERTS_TOPIC = "vehicle-alerts";
     private static final String GEOFENCE_STATE_STORE = "geofence-state-store";
+    private static final String IDLE_STATE_STORE = "idle-state-store";
 
     @Bean
     public KStream<String, String> kStream(StreamsBuilder streamsBuilder) {
@@ -53,23 +54,32 @@ public class VehicleEventStreamProcessor {
         streamsBuilder.addStateStore(geofenceStoreBuilder);
         log.info("✅ Added geofence state store: {}", GEOFENCE_STATE_STORE);
 
-        // State store for idle detection
-        StoreBuilder<KeyValueStore<String, VehicleStatsAggregate>> idleStoreBuilder = Stores
+        // State store for idle detection - NEW FIXED VERSION
+        StoreBuilder<KeyValueStore<String, IdleState>> idleStoreBuilder = Stores
                 .keyValueStoreBuilder(
-                        Stores.persistentKeyValueStore("idle-state-store"),
+                        Stores.persistentKeyValueStore(IDLE_STATE_STORE),
+                        Serdes.String(),
+                        new IdleStateSerde(objectMapper));
+        streamsBuilder.addStateStore(idleStoreBuilder);
+        log.info("✅ Added idle detection state store: {}", IDLE_STATE_STORE);
+
+        // State store for statistics (optional, keep if needed)
+        StoreBuilder<KeyValueStore<String, VehicleStatsAggregate>> statsStoreBuilder = Stores
+                .keyValueStoreBuilder(
+                        Stores.persistentKeyValueStore("stats-state-store"),
                         Serdes.String(),
                         new VehicleStatsAggregateSerde(objectMapper));
-        streamsBuilder.addStateStore(idleStoreBuilder);
-        log.info("✅ Added idle detection state store");
+        streamsBuilder.addStateStore(statsStoreBuilder);
+        log.info("✅ Added statistics state store");
 
         KStream<String, String> sourceStream = streamsBuilder
                 .stream(VEHICLE_GPS_TOPIC, Consumed.with(Serdes.String(), Serdes.String()));
 
         log.info("✅ Created source stream from topic: {}", VEHICLE_GPS_TOPIC);
 
-        // Process alerts
+        // Process alerts - FIXED IDLE DETECTION
         processSpeedingAlerts(sourceStream);
-        processIdleAlerts(sourceStream);
+        processIdleAlerts(sourceStream); // UPDATED
         processGeofenceAlerts(sourceStream);
 
         log.info("✅ Kafka Streams topology built: speeding > {} kph, idle > {} minutes",
@@ -77,6 +87,11 @@ public class VehicleEventStreamProcessor {
 
         // Return the stream (Spring will handle starting Kafka Streams)
         return sourceStream;
+    }
+    
+    @Bean
+    public Duration idleThreshold(@Value("${idle.threshold.minutes:10}") long minutes) {
+        return Duration.ofMinutes(minutes);
     }
 
     private void processSpeedingAlerts(KStream<String, String> stream) {
@@ -105,43 +120,20 @@ public class VehicleEventStreamProcessor {
     }
 
     private void processIdleAlerts(KStream<String, String> stream) {
-        log.info("⚡ Configuring idle alert processing...");
-
-        Duration windowDuration = Duration.ofMinutes(idleThresholdMinutes);
+        log.info("⚡ Configuring idle alert processing (threshold: {} minutes)...", idleThresholdMinutes);
 
         KStream<String, String> idleAlerts = stream
                 .mapValues(this::parseVehicleEvent)
                 .filter((key, event) -> event != null)
-                .groupByKey()
-                .windowedBy(TimeWindows.ofSizeWithNoGrace(windowDuration))
-                .aggregate(
-                        VehicleStatsAggregate::new,
-                        (key, event, agg) -> {
-                            VehicleStatsAggregate updatedAgg = agg.add(event);
-                            log.debug("Aggregated for key {}: count={}, avgSpeed={}",
-                                    key, updatedAgg.getCount(), updatedAgg.getAvgSpeed());
-                            return updatedAgg;
-                        },
-                        Materialized.with(Serdes.String(), new VehicleStatsAggregateSerde(objectMapper)))
-                .toStream()
-                .peek((windowedKey, agg) -> log.debug("Windowed aggregate for key {}: {}", windowedKey.key(), agg))
-                .filter((windowedKey, agg) -> agg != null
-                        && agg.getCount() > 1
-                        && agg.getAvgSpeed() < 5.0)
-                .peek((windowedKey, agg) -> log.info("🚨 IDLE ALERT TRIGGERED for key {}: avgSpeed={}, count={}",
-                        windowedKey.key(), agg.getAvgSpeed(), agg.getCount()))
-                .selectKey((windowedKey, agg) -> windowedKey.key())
-                .mapValues((key, agg) -> {
-                    String alert = createIdleAlert(key, agg.getLastLat(), agg.getLastLng());
-                    log.info("🚨 Created idle alert for key {}: {}", key, alert);
-                    return alert;
-                });
+                .transform(() -> new IdleTransformer(Duration.ofMinutes(idleThresholdMinutes), objectMapper),
+                        IDLE_STATE_STORE)
+                .filter((key, alertJson) -> alertJson != null && !alertJson.isEmpty())
+                .peek((key, alertJson) -> log.info("🚨 IDLE ALERT PRODUCED for key {}: {}", key, alertJson));
 
         // Send to alerts topic
         idleAlerts.to(VEHICLE_ALERTS_TOPIC, Produced.with(Serdes.String(), Serdes.String()));
 
-        log.info("✅ Idle alert stream configured (> {} minutes of average speed < 5 kph)",
-                idleThresholdMinutes);
+        log.info("✅ Idle alert stream configured (> {} minutes of being stationary)", idleThresholdMinutes);
     }
 
     private void processGeofenceAlerts(KStream<String, String> stream) {
@@ -177,28 +169,15 @@ public class VehicleEventStreamProcessor {
                 "excess", event.getSpeedKph() - speedingThresholdKph));
     }
 
-    private String createIdleAlert(String vehicleId, double lastLat, double lastLng) {
-        Map<String, Object> details = Map.of(
-                "idleMinutes", idleThresholdMinutes,
-                "lastLat", lastLat,
-                "lastLng", lastLng);
-        return createAlert(vehicleId, AlertType.IDLE, details, lastLat, lastLng);
-    }
-
     private String createAlert(VehicleEventDTO event, AlertType type, Map<String, Object> details) {
-        return createAlert(event.getVehicleId(), type, details, event.getLat(), event.getLng());
-    }
-
-    private String createAlert(String vehicleId, AlertType type, Map<String, Object> details,
-            Double lat, Double lng) {
         try {
             AlertEventDTO alert = new AlertEventDTO();
-            alert.setVehicleId(vehicleId);
+            alert.setVehicleId(event.getVehicleId());
             alert.setAlertType(type);
             alert.setDetails(details);
             alert.setTimestamp(LocalDateTime.now());
-            alert.setLat(lat);
-            alert.setLng(lng);
+            alert.setLat(event.getLat());
+            alert.setLng(event.getLng());
             return objectMapper.writeValueAsString(alert);
         } catch (Exception e) {
             log.error("Failed to create {} alert: {}", type, e.getMessage());
