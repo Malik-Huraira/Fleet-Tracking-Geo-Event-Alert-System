@@ -19,9 +19,10 @@ export interface Vehicle {
 export interface AlertDetails {
   speedKph?: number;
   threshold?: number;
-  geofenceName?: string;
-  // Allow legacy field from older backend versions (if any)
   geofence?: string;
+  zone?: string;
+  // Legacy field name for backward compatibility
+  geofenceName?: string;
   idleMinutes?: number;
   // Allow any extra fields from backend (e.g., excess speed, location details)
   [key: string]: any;

@@ -67,10 +67,10 @@ const Index = () => {
 
         {/* Map Area */}
         <section className="flex-1 min-w-0">
-          <FleetMap 
-            vehicles={vehicles} 
-            highlightedVehicleId={highlightedVehicleId} 
-            onVehicleSelect={handleVehicleSelect} 
+          <FleetMap
+            vehicles={vehicles}
+            highlightedVehicleId={highlightedVehicleId}
+            onVehicleSelect={handleVehicleSelect}
           />
         </section>
 
@@ -97,7 +97,7 @@ function VehicleItem({ vehicle, isSelected, onClick }: { vehicle: Vehicle; isSel
 function AlertItem({ alert, onClick }: { alert: Alert; onClick: () => void }) {
   const styles = { SPEEDING: 'border-l-4 border-l-destructive bg-destructive/10', GEOFENCE: 'border-l-4 border-l-primary bg-primary/10', IDLE: 'border-l-4 border-l-warning bg-warning/10' };
   const icons = { SPEEDING: <Zap className="w-4 h-4 text-destructive" />, GEOFENCE: <MapPin className="w-4 h-4 text-primary" />, IDLE: <Clock className="w-4 h-4 text-warning" /> };
-  const detail = alert.alertType === 'SPEEDING' ? `Speed: ${alert.details.speedKph} kph` : alert.alertType === 'GEOFENCE' ? `Zone: ${alert.details.geofenceName}` : `Idle: ${alert.details.idleMinutes}m`;
+  const detail = alert.alertType === 'SPEEDING' ? `Speed: ${alert.details.speedKph} kph` : alert.alertType === 'GEOFENCE' ? `Zone: ${alert.details.geofence || alert.details.zone}` : `Idle: ${alert.details.idleMinutes}m`;
   return <button onClick={onClick} className={`w-full text-left p-3 rounded-lg transition-all hover:bg-accent/50 ${styles[alert.alertType]}`}><div className="flex items-start gap-3"><div className="mt-0.5">{icons[alert.alertType]}</div><div className="flex-1"><div className="flex items-center justify-between gap-2"><span className="font-medium text-sm text-foreground">{alert.vehicleId}</span><span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(alert.timestamp), { addSuffix: true })}</span></div><p className="text-xs text-muted-foreground mt-0.5 capitalize">{alert.alertType.toLowerCase()} Alert</p><p className="text-xs text-foreground/70 mt-1">{detail}</p></div></div></button>;
 }
 

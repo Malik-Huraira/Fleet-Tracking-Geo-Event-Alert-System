@@ -1,204 +1,207 @@
-🚚 GeoFleet — Real-Time Fleet Tracking & Geo-Event Alert System
+# 🚚 GeoFleet - Real-Time Fleet Tracking & Geofencing System
 
-GeoFleet is a production-grade, real-time fleet tracking and geo-event alert platform designed to monitor vehicle movement, enforce operational rules, and deliver instant alerts at scale.
-It combines a reactive, event-driven Spring Boot backend (WebFlux + Kafka Streams) with a modern React dashboard powered by Server-Sent Events (SSE) for ultra-low-latency updates.
+[![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://openjdk.java.net/projects/jdk/17/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.1.5-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![React](https://img.shields.io/badge/React-18.3.1-blue.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-blue.svg)](https://www.typescriptlang.org/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)](https://docs.docker.com/compose/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-📌 Executive Summary
+GeoFleet is a production-grade, real-time fleet tracking and geofencing platform designed for enterprise-scale vehicle monitoring. Built with event-driven architecture using Spring Boot WebFlux, Kafka Streams, and React, it provides instant alerts, geofence monitoring, and comprehensive fleet analytics.
 
-Purpose
-Provide real-time visibility into fleet operations with immediate detection of:
+## 🎯 Key Features
 
-Speeding violations
+### 🚗 Real-Time Vehicle Tracking
+- **Live GPS Monitoring**: Continuous position, speed, heading, and status tracking
+- **Automatic Status Classification**: ONLINE, IDLE, OFFLINE with intelligent state management
+- **Interactive Map Interface**: Real-time vehicle markers with movement trails using Leaflet
+- **Fleet Statistics**: Live dashboard with comprehensive fleet metrics
 
-Prolonged idling
+### 🗺️ Advanced Geofencing (PostGIS)
+- **Polygon-Based Zones**: Complex geofence shapes stored using PostGIS geometry
+- **Boundary-Inclusive Detection**: Accurate entry/exit detection using `ST_Covers` spatial queries
+- **Real-Time Alerts**: Instant ENTER/EXIT notifications with zone identification
+- **Stateful Processing**: Kafka Streams-based state management for reliable event generation
 
-Geofence entry and exit events
+### 🚨 Intelligent Alert System
+- **Speeding Detection**: Configurable speed thresholds (default: 80 km/h) with instant alerts
+- **Idle Monitoring**: Precise zero-speed detection with configurable duration (10+ minutes)
+- **Geofence Events**: Entry and exit alerts with zone name and coordinates
+- **Exactly-Once Semantics**: Kafka Streams configuration ensures no duplicate alerts
 
-Architecture
-Fully event-driven system leveraging Kafka Streams, reactive APIs, and push-based browser updates.
+### 🔄 Event-Driven Architecture
+- **Server-Sent Events (SSE)**: Ultra-low latency real-time updates to dashboard
+- **Kafka Streams Processing**: Scalable rule evaluation and alert generation
+- **Dead Letter Queue**: Comprehensive error handling with diagnostic preservation
+- **Reactive Backend**: Spring WebFlux for high-throughput, non-blocking operations
 
-Scalability
-Continuous rule evaluation via Kafka Streams and efficient fan-out using SSE.
+## 🏗️ System Architecture
 
-Reliability
-Built-in Dead Letter Queue (DLQ) handling, strict idle detection logic, and comprehensive observability.
+```
+┌─────────────────────┐    Kafka Topics     ┌──────────────────────┐
+│  Vehicle Simulator  │ ──────────────────▶ │   vehicle-gps        │
+│  (Route-based GPS)  │                     │   vehicle-alerts     │
+└─────────────────────┘                     │   vehicle-gps-dlq    │
+                                             └──────────┬───────────┘
+                                                        │
+                                             Kafka Streams (Rules Engine)
+                                                        │
+                                            ┌───────────▼────────────┐
+                                            │  Spring Boot Backend   │
+                                            │  (WebFlux + PostGIS)   │
+                                            └───────────┬────────────┘
+                                                        │
+                                            Server-Sent Events (SSE)
+                                                        │
+                                            ┌───────────▼────────────┐
+                                            │   React Dashboard      │
+                                            │ (TypeScript + Leaflet) │
+                                            └────────────────────────┘
+```
 
-🏗️ System Architecture
-┌────────────────────┐       Kafka Topics       ┌────────────────────┐
-│ Vehicle Simulator  │ ──────────────────────▶ │ vehicle-gps        │
-└────────────────────┘                          │ vehicle-alerts     │
-                                                 │ vehicle-gps-dlq    │
-                                                 └─────────┬──────────┘
-                                                           │
-                                                  Kafka Streams (Rules Engine)
-                                                           │
-                                               ┌───────────▼───────────┐
-                                               │ Spring Boot Backend   │
-                                               │ (WebFlux + SSE)       │
-                                               └───────────┬───────────┘
-                                                           │
-                                               Server-Sent Events (SSE)
-                                                           │
-                                               ┌───────────▼───────────┐
-                                               │ React Dashboard       │
-                                               │ (Vite + Leaflet)      │
-                                               └───────────────────────┘
+## 🛠️ Technology Stack
 
-⚙️ Core Capabilities
-🚗 Vehicle Tracking
+### Backend
+- **Java 17** with Spring Boot 3.1.5
+- **Spring WebFlux** for reactive programming
+- **Apache Kafka + Kafka Streams** for event processing
+- **PostgreSQL + PostGIS** for spatial data storage
+- **Hibernate Spatial** for JPA spatial queries
+- **Flyway** for database migrations
+- **Micrometer + Prometheus** for metrics
+- **MapStruct** for DTO mapping
+- **Testcontainers** for integration testing
 
-Continuous ingestion of GPS telemetry
+### Frontend
+- **React 18.3.1** with TypeScript 5.8.3
+- **Vite 7.3.0** for fast development and building
+- **Tailwind CSS 3.4.17** for styling
+- **shadcn/ui** component library with Radix UI
+- **React Leaflet 4.2.1** for interactive maps
+- **TanStack Query 5.83.0** for data fetching
+- **React Hook Form** for form management
+- **Date-fns** for date manipulation
 
-Real-time position, speed, heading, and last-seen tracking
+### Infrastructure
+- **Docker & Docker Compose** for containerization
+- **Confluent Kafka 7.6.0** for message streaming
+- **PostGIS 16-3.4** for spatial database
+- **Prometheus** for monitoring and metrics
 
-Automatic status classification:
+## 📁 Project Structure
 
-ONLINE
-
-IDLE
-
-OFFLINE
-
-🗺️ Geo-Fencing (PostGIS)
-
-Polygon-based geofences stored using PostGIS geometry + JSONB
-
-Accurate boundary-inclusive detection using ST_Covers
-
-Stateful entry and exit event generation in real time
-
-🚨 Alerting Engine
-
-Speeding: Immediate detection when speed exceeds threshold (default: 80 km/h)
-
-Idle: Strict zero-speed detection (consecutive zero-speed events for >10 minutes)
-
-Geofence: ENTER and EXIT alerts
-
-Exactly-once semantics via Kafka Streams configuration
-
-🔄 Real-Time Streaming
-
-Dedicated SSE streams for:
-
-Vehicle updates
-
-Alerts
-
-30-second keep-alive heartbeats for resilient reconnections
-
-Replay buffer support for late-connecting clients
-
-🧯 Dead Letter Queue (DLQ)
-
-Failed messages routed to vehicle-gps-dlq
-
-Full diagnostic headers preserved
-
-Dedicated DLQ consumer for monitoring and debugging
-
-📊 Dashboard & Observability
-
-Live map with vehicle markers and movement trails
-
-Real-time alert feed and vehicle list
-
-Fleet-wide statistics panel
-
-Prometheus metrics and health endpoints
-
-🧰 Technology Stack
-Backend
-
-Java 17
-
-Spring Boot 3 (WebFlux)
-
-Spring for Apache Kafka + Kafka Streams
-
-PostgreSQL + PostGIS
-
-Flyway migrations
-
-Project Reactor
-
-Micrometer + Prometheus
-
-Frontend
-
-React 18
-
-Vite
-
-Tailwind CSS
-
-Leaflet / React-Leaflet
-
-Server-Sent Events (EventSource)
-
-Lucide Icons
-
-Infrastructure
-
-Docker & Docker Compose
-
-Prometheus monitoring
-
-📁 Repository Structure
+```
 GeoFleet/
-├── backend/
+├── backend/tracking/                    # Spring Boot Backend
 │   ├── src/main/java/com/geofleet/tracking/
-│   │   ├── controller/       # REST + SSE endpoints
-│   │   ├── sse/              # Reactive publishers
-│   │   ├── service/          # Business logic & status handling
-│   │   ├── repository/       # JPA + PostGIS queries
-│   │   ├── model/            # Entities, DTOs, enums
+│   │   ├── config/                      # Configuration classes
+│   │   ├── controller/                  # REST & SSE endpoints
+│   │   ├── exception/                   # Exception handling
 │   │   ├── kafka/
-│   │   │   ├── consumer/     # GPS, Alert, DLQ consumers
-│   │   │   ├── producer/     # Simulator producer
-│   │   │   └── streams/      # Speeding, idle, geofence processors
-│   │   ├── simulator/        # Realistic route-based simulator
-│   │   └── util/             # Geometry utilities
-│   └── TrackingApplication.java
+│   │   │   ├── consumer/               # GPS, Alert, DLQ consumers
+│   │   │   ├── producer/               # Message producers
+│   │   │   └── streams/                # Kafka Streams processors
+│   │   ├── model/                      # JPA entities & DTOs
+│   │   ├── repository/                 # JPA repositories with PostGIS
+│   │   ├── service/                    # Business logic layer
+│   │   ├── simulator/                  # GPS data simulator
+│   │   ├── sse/                        # Server-Sent Events publishers
+│   │   └── util/                       # Utility classes
+│   ├── src/main/resources/
+│   │   ├── db/migration/               # Flyway database migrations
+│   │   ├── application.yml             # Spring configuration
+│   │   └── application-docker.yml      # Docker-specific config
+│   ├── pom.xml                         # Maven dependencies
+│   └── Dockerfile                      # Backend container
 │
-├── frontend/geofleet-dashboard/
+├── frontend/geofleet-dashboard/         # React Frontend
 │   ├── src/
-│   │   ├── components/       # Map, alerts panel, vehicle list, stats
-│   │   ├── services/         # SSE connection management
-│   │   ├── utils/            # Status formatting helpers
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   └── vite.config.js
+│   │   ├── components/
+│   │   │   ├── ui/                     # shadcn/ui components
+│   │   │   ├── AlertsPanel.tsx         # Real-time alerts display
+│   │   │   ├── FleetMap.tsx            # Interactive Leaflet map
+│   │   │   ├── StatsBar.tsx            # Fleet statistics
+│   │   │   └── VehicleList.tsx         # Vehicle status list
+│   │   ├── hooks/
+│   │   │   ├── useFleetStream.ts       # SSE connection management
+│   │   │   └── use-toast.ts            # Toast notifications
+│   │   ├── pages/
+│   │   │   ├── Index.tsx               # Main dashboard
+│   │   │   └── NotFound.tsx            # 404 page
+│   │   ├── types/
+│   │   │   └── fleet.ts                # TypeScript interfaces
+│   │   └── lib/
+│   │       └── utils.ts                # Utility functions
+│   ├── package.json                    # Node.js dependencies
+│   ├── vite.config.ts                  # Vite configuration
+│   ├── tailwind.config.ts              # Tailwind CSS config
+│   └── Dockerfile                      # Frontend container
 │
-├── docker-compose.yml
-├── prometheus.yml
-└── README.md
+├── docker-compose.yml                  # Multi-service orchestration
+├── prometheus.yml                      # Prometheus configuration
+└── README.md                          # This file
+```
 
-▶️ Running the Platform (Docker)
+## 🚀 Quick Start
+
+### Prerequisites
+- Docker & Docker Compose
+- 8GB+ RAM recommended for all services
+
+### 1. Clone & Start
+```bash
+git clone <repository-url>
+cd GeoFleet
 docker compose up --build
+```
 
-🌐 Service Endpoints
-Component	URL
-Frontend Dashboard	http://localhost:8081
+### 2. Access Services
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Dashboard** | http://localhost:8081 | Main fleet tracking interface |
+| **Backend API** | http://localhost:8080/api | REST API endpoints |
+| **Vehicle Stream** | http://localhost:8080/api/stream/vehicles | SSE vehicle updates |
+| **Alert Stream** | http://localhost:8080/api/stream/alerts | SSE alert notifications |
+| **Prometheus** | http://localhost:9090 | Metrics and monitoring |
+| **Health Check** | http://localhost:8080/api/actuator/health | Service health status |
 
-Backend API	http://localhost:8080/api
+### 3. View Live Data
+The system includes a realistic GPS simulator that generates vehicle movements along predefined routes. You'll immediately see:
+- Live vehicle positions on the map
+- Real-time speed and status updates
+- Geofence entry/exit alerts
+- Fleet statistics and metrics
 
-Vehicle SSE Stream	http://localhost:8080/api/stream/vehicles
+## ⚙️ Configuration
 
-Alert SSE Stream	http://localhost:8080/api/stream/alerts
-
-Prometheus	http://localhost:9090
-
-Health Check	http://localhost:8080/api/actuator/health
-⚙️ Frontend Configuration (.env)
+### Environment Variables
+```bash
+# Frontend (.env)
 VITE_API_BASE_URL=http://localhost:8080/api
 VITE_SSE_URL=http://localhost:8080/api/stream
 VITE_USE_MOCK_DATA=false
 
-📡 Event Contracts
-Vehicle Stream Event
+# Backend (application-docker.yml)
+SPRING_PROFILES_ACTIVE=docker
+JAVA_OPTS=-Duser.timezone=Asia/Karachi
+```
+
+### Alert Thresholds
+```yaml
+# application.yml
+fleet:
+  alerts:
+    speed-threshold: 80        # km/h
+    idle-threshold: 600000     # 10 minutes in milliseconds
+    geofence-enabled: true
+```
+
+## 📡 API Contracts
+
+### Vehicle Stream Event
+```json
 {
-  "vehicleId": "TRK-11",
+  "vehicleId": "TRK-04",
   "lat": 24.8899,
   "lng": 67.0282,
   "speedKph": 55.4,
@@ -208,39 +211,123 @@ Vehicle Stream Event
   "region": "Warehouse A",
   "timestamp": "2025-12-29T10:30:00Z"
 }
+```
 
-Alert Stream Event
+### Alert Stream Event
+```json
 {
-  "vehicleId": "TRK-11",
-  "alertType": "SPEEDING",
+  "vehicleId": "TRK-04",
+  "alertType": "GEOFENCE",
   "details": {
-    "speedKph": 120,
-    "threshold": 80,
-    "excess": 40
+    "geofence": "Warehouse A",
+    "zone": "Warehouse A",
+    "action": "entered",
+    "lat": 24.8899,
+    "lng": 67.0282
   },
   "timestamp": "2025-12-29T10:30:06Z",
   "lat": 24.8899,
   "lng": 67.0282
 }
+```
 
-🔁 End-to-End Processing Flow
+## 🔄 Data Flow
 
-Simulator produces GPS events → vehicle-gps topic
+1. **GPS Ingestion**: Simulator produces realistic GPS events → `vehicle-gps` topic
+2. **Stream Processing**: Kafka Streams evaluates rules (speed, idle, geofence) in real-time
+3. **Alert Generation**: Rule violations produce alerts → `vehicle-alerts` topic
+4. **Persistence**: Consumers save data to PostgreSQL with PostGIS spatial indexing
+5. **Real-Time Updates**: SSE streams push updates to React dashboard instantly
+6. **Error Handling**: Failed messages route to `vehicle-gps-dlq` for analysis
 
-Kafka Streams evaluates rules in real time
+## 🏥 Health & Monitoring
 
-Alerts are published to vehicle-alerts topic
+### Health Endpoints
+- **Application Health**: `/api/actuator/health`
+- **Database Health**: Includes PostGIS connectivity check
+- **Kafka Health**: Stream processor status monitoring
 
-Consumers persist data and publish updates via SSE
+### Prometheus Metrics
+- **Custom Metrics**: Vehicle counts, alert rates, processing latencies
+- **JVM Metrics**: Memory, GC, thread pools
+- **Kafka Metrics**: Consumer lag, throughput, error rates
+- **Database Metrics**: Connection pool, query performance
 
-React dashboard receives and renders updates instantly
+### Logging
+- **Structured Logging**: JSON format with correlation IDs
+- **Alert Processing**: Detailed logs for debugging geofence issues
+- **Performance Monitoring**: Stream processing latencies and throughput
 
-❤️ Health & Metrics
+## 🧪 Testing
 
-Health: /api/actuator/health
+### Backend Testing
+```bash
+cd backend/tracking
+./mvnw test                    # Unit tests
+./mvnw verify                  # Integration tests with Testcontainers
+```
 
-Metrics: /api/actuator/prometheus
+### Frontend Testing
+```bash
+cd frontend/geofleet-dashboard
+npm test                       # Jest unit tests
+npm run lint                   # ESLint code quality
+```
 
-📄 License
+## 🔧 Development
 
-MIT License
+### Backend Development
+```bash
+cd backend/tracking
+./mvnw spring-boot:run
+```
+
+### Frontend Development
+```bash
+cd frontend/geofleet-dashboard
+npm run dev                    # Vite dev server with HMR
+```
+
+### Database Migrations
+```bash
+# New migration
+./mvnw flyway:migrate
+
+# Migration info
+./mvnw flyway:info
+```
+
+## 🚀 Production Deployment
+
+### Docker Swarm
+```bash
+docker stack deploy -c docker-compose.yml geofleet
+```
+
+### Kubernetes
+Helm charts and Kubernetes manifests available in `/k8s` directory.
+
+### Environment-Specific Configs
+- **Development**: `application.yml`
+- **Docker**: `application-docker.yml`
+- **Production**: `application-prod.yml`
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **PostGIS** for powerful spatial database capabilities
+- **Apache Kafka** for reliable event streaming
+- **Spring Boot** for robust backend framework
+- **React & TypeScript** for modern frontend development
+- **Leaflet** for interactive mapping capabilities
