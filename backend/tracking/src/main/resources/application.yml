@@ -71,7 +71,7 @@ speeding:
 
 idle:
   threshold:
-    minutes: 10
+    minutes: 2
 
 simulator:
   enabled: true
