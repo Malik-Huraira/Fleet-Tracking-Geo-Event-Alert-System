@@ -1,0 +1,122 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      httpclient:
+        connect-timeout: 10000
+        response-timeout: 30s
+        pool:
+          max-idle-time: 300000ms
+      routes:
+        # SSE Streaming Routes
+        - id: stream-vehicles
+          uri: http://backend-service-vehicle-tracking:8081
+          predicates:
+            - Path=/api/stream/vehicles
+          filters:
+            - RewritePath=/api/stream/vehicles, /stream/vehicles
+          metadata:
+            response-timeout: -1
+
+        - id: stream-alerts
+          uri: http://backend-service-alert-processing:8082
+          predicates:
+            - Path=/api/stream/alerts
+          filters:
+            - RewritePath=/api/stream/alerts, /stream/alerts
+          metadata:
+            response-timeout: -1
+
+        # Frontend compatibility routes
+        - id: vehicles-status-all
+          uri: http://backend-service-vehicle-tracking:8081
+          predicates:
+            - Path=/api/vehicles/status/all
+          filters:
+            - RewritePath=/api/vehicles/status/all, /api/tracking/vehicles
+
+        - id: vehicles-stats
+          uri: http://backend-service-vehicle-tracking:8081
+          predicates:
+            - Path=/api/vehicles/stats
+          filters:
+            - RewritePath=/api/vehicles/stats, /api/tracking/connections
+
+        # Vehicle Tracking Service
+        - id: vehicle-tracking-service
+          uri: http://backend-service-vehicle-tracking:8081
+          predicates:
+            - Path=/api/tracking/**
+          filters:
+            - StripPrefix=0
+
+        # Alert Processing Service
+        - id: alert-processing-service
+          uri: http://backend-service-alert-processing:8082
+          predicates:
+            - Path=/api/alerts/**
+          filters:
+            - StripPrefix=0
+
+        # Geofence Service
+        - id: geofence-service
+          uri: http://backend-service-geofence:8083
+          predicates:
+            - Path=/api/geofences/**
+          filters:
+            - StripPrefix=0
+
+        # Query Service
+        - id: query-service
+          uri: http://backend-service-query:8084
+          predicates:
+            - Path=/api/query/**, /api/analytics/**
+          filters:
+            - StripPrefix=0
+
+        # Simulator Service
+        - id: simulator-service
+          uri: http://backend-service-simulator:8086
+          predicates:
+            - Path=/api/simulator/**
+          filters:
+            - StripPrefix=0
+
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin RETAIN_UNIQUE
+
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          "[/**]":
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - HEAD
+            allowedHeaders: "*"
+            allowCredentials: false
+            exposedHeaders: "*"
+            maxAge: 3600
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      access: unrestricted
+
+logging:
+  level:
+    "[org.springframework.cloud.gateway]": INFO

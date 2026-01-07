@@ -1,0 +1,42 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: simulator-service
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration
+
+# Tracking service URL for sending GPS data
+tracking:
+  service:
+    url: http://backend-service-vehicle-tracking:8081
+
+# Simulator configuration
+simulator:
+  vehicles:
+    count: 10
+    prefix: "VH"
+  update:
+    interval-ms: 2000
+  area:
+    center-lat: 37.7749
+    center-lon: -122.4194
+    radius-km: 10
+  auto-start: true # Automatically start on boot
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    "[com.geofleet]": DEBUG

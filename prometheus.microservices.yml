@@ -1,0 +1,39 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Backend Services
+  - job_name: 'backend-service-api-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['backend-service-api-gateway:8080']
+
+  - job_name: 'backend-service-vehicle-tracking'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['backend-service-vehicle-tracking:8081']
+
+  - job_name: 'backend-service-alert-processing'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['backend-service-alert-processing:8082']
+
+  - job_name: 'backend-service-geofence'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['backend-service-geofence:8083']
+
+  - job_name: 'backend-service-query'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['backend-service-query:8084']
+
+  - job_name: 'backend-service-simulator'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['backend-service-simulator:8086']

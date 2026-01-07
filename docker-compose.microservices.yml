@@ -1,0 +1,314 @@
+# ============================================================
+# GeoFleet Microservices - Docker Compose
+# Structure: backend (services + db) + frontend + monitoring
+# ============================================================
+
+services:
+  # ============================================================
+  # BACKEND / DB - Database Services
+  # ============================================================
+
+  backend-db-vehicle-tracking:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: backend-db-vehicle-tracking
+    environment:
+      POSTGRES_DB: vehicle_tracking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - vehicle_tracking_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - geofleet-network
+
+  backend-db-alert:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: backend-db-alert
+    environment:
+      POSTGRES_DB: alert_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - alert_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - geofleet-network
+
+  backend-db-geofence:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: backend-db-geofence
+    environment:
+      POSTGRES_DB: geofence_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - geofence_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - geofleet-network
+
+  backend-db-query:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: backend-db-query
+    environment:
+      POSTGRES_DB: query_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5436:5432"
+    volumes:
+      - query_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - geofleet-network
+
+  # ============================================================
+  # BACKEND / SERVICES - Message Broker (Kafka)
+  # ============================================================
+
+  backend-zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: backend-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - geofleet-network
+
+  backend-kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: backend-kafka
+    depends_on:
+      - backend-zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: backend-zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://backend-kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - geofleet-network
+
+  backend-kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: backend-kafka-init
+    depends_on:
+      - backend-kafka
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      echo 'Waiting for Kafka to be ready...'
+      cub kafka-ready -b backend-kafka:9092 1 60
+
+      echo 'Creating Kafka topics...'
+      kafka-topics --create --if-not-exists --bootstrap-server backend-kafka:9092 --partitions 6 --replication-factor 1 --topic vehicle-gps
+      kafka-topics --create --if-not-exists --bootstrap-server backend-kafka:9092 --partitions 3 --replication-factor 1 --topic vehicle-alerts
+      kafka-topics --create --if-not-exists --bootstrap-server backend-kafka:9092 --partitions 3 --replication-factor 1 --topic vehicle-gps-dlq
+
+      echo 'Topics created:'
+      kafka-topics --list --bootstrap-server backend-kafka:9092
+      "
+    networks:
+      - geofleet-network
+
+  # ============================================================
+  # BACKEND / SERVICES - Microservices
+  # ============================================================
+
+  backend-service-api-gateway:
+    build:
+      context: ./backend/microservices
+      dockerfile: api-gateway/Dockerfile
+    container_name: backend-service-api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend-service-vehicle-tracking
+      - backend-service-alert-processing
+      - backend-service-geofence
+      - backend-service-query
+    networks:
+      - geofleet-network
+
+  backend-service-vehicle-tracking:
+    build:
+      context: ./backend/microservices
+      dockerfile: vehicle-tracking-service/Dockerfile
+    container_name: backend-service-vehicle-tracking
+    ports:
+      - "8081:8081"
+    depends_on:
+      backend-db-vehicle-tracking:
+        condition: service_healthy
+      backend-kafka:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://backend-db-vehicle-tracking:5432/vehicle_tracking
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: backend-kafka:9092
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - geofleet-network
+
+  backend-service-alert-processing:
+    build:
+      context: ./backend/microservices
+      dockerfile: alert-processing-service/Dockerfile
+    container_name: backend-service-alert-processing
+    ports:
+      - "8082:8082"
+    depends_on:
+      backend-db-alert:
+        condition: service_healthy
+      backend-kafka:
+        condition: service_started
+      backend-service-geofence:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://backend-db-alert:5432/alert_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: backend-kafka:9092
+      GEOFENCE_SERVICE_URL: http://backend-service-geofence:8083
+    networks:
+      - geofleet-network
+
+  backend-service-geofence:
+    build:
+      context: ./backend/microservices
+      dockerfile: geofence-service/Dockerfile
+    container_name: backend-service-geofence
+    ports:
+      - "8083:8083"
+    depends_on:
+      backend-db-geofence:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://backend-db-geofence:5432/geofence_db
+    networks:
+      - geofleet-network
+
+  backend-service-query:
+    build:
+      context: ./backend/microservices
+      dockerfile: query-service/Dockerfile
+    container_name: backend-service-query
+    ports:
+      - "8084:8084"
+    depends_on:
+      backend-db-query:
+        condition: service_healthy
+      backend-kafka:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://backend-db-query:5432/query_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: backend-kafka:9092
+    networks:
+      - geofleet-network
+
+  backend-service-simulator:
+    build:
+      context: ./backend/microservices
+      dockerfile: simulator-service/Dockerfile
+    container_name: backend-service-simulator
+    ports:
+      - "8086:8086"
+    depends_on:
+      backend-service-vehicle-tracking:
+        condition: service_healthy
+    environment:
+      TRACKING_SERVICE_URL: http://backend-service-vehicle-tracking:8081
+    restart: on-failure
+    networks:
+      - geofleet-network
+
+  # ============================================================
+  # MONITORING
+  # ============================================================
+
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.microservices.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    networks:
+      - geofleet-network
+
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - geofleet-network
+
+  # ============================================================
+  # FRONTEND
+  # ============================================================
+
+  frontend:
+    build:
+      context: ./frontend/geofleet-dashboard
+      dockerfile: Dockerfile
+    container_name: fleet-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080/api
+      VITE_SSE_URL: http://localhost:8080/api/stream
+      VITE_USE_MOCK_DATA: "false"
+    depends_on:
+      - backend-service-api-gateway
+    networks:
+      - geofleet-network
+    restart: unless-stopped
+
+networks:
+  geofleet-network:
+    driver: bridge
+
+volumes:
+  vehicle_tracking_data:
+  alert_data:
+  geofence_data:
+  query_data:
+  grafana_data:

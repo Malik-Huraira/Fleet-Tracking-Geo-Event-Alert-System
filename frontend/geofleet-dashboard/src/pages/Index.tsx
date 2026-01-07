@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { Truck, AlertTriangle, Gauge, Clock, Zap, MapPin, Search, ChevronRight, Activity, Radio, Shield, Filter, X, History } from 'lucide-react';
+import { Truck, AlertTriangle, Gauge, Clock, Zap, MapPin, Search, ChevronRight, Activity, Radio, Shield, Filter, X } from 'lucide-react';
 import { FleetMap } from '@/components/FleetMap';
 import { useVehicleStream, useAlertStream } from '@/hooks/useFleetStream';
 import { Vehicle, Alert } from '@/types/fleet';
@@ -109,15 +108,6 @@ const Index = () => {
               subValue="km/h"
               variant="primary"
             />
-
-            {/* History Link */}
-            <Link
-              to="/history"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-colors"
-            >
-              <History className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">History</span>
-            </Link>
           </div>
         </div>
       </header>
@@ -469,7 +459,7 @@ function AlertItem({ alert, onClick }: { alert: Alert; onClick: () => void }) {
   const detail = alert.alertType === 'SPEEDING'
     ? `${alert.details.speedKph} km/h`
     : alert.alertType === 'GEOFENCE'
-      ? `${alert.details.geofence || alert.details.zone}`
+      ? `${alert.details.geofenceName || alert.details.geofence_name || alert.details.geofence || alert.details.zone || 'Unknown'}`
       : `${alert.details.idleMinutes} min`;
 
   return (

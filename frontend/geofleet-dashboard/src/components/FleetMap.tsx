@@ -119,7 +119,7 @@ export function FleetMap({ vehicles, highlightedVehicleId, onVehicleSelect }: Fl
         vehicles.reduce((a, v) => a + v.lat, 0) / vehicles.length,
         vehicles.reduce((a, v) => a + v.lng, 0) / vehicles.length,
       ]
-      : [24.8607, 67.0011];
+      : [37.7749, -122.4194]; // San Francisco (default simulator location)
 
     const map = L.map(containerRef.current, {
       center,

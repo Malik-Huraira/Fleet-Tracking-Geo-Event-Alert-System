@@ -27,22 +27,48 @@ const mockAlerts: Alert[] = [
 
 // === MAPPING HELPERS ===
 function mapVehicleEvent(event: any): Vehicle {
-  const timestamp = typeof event.timestamp === 'string' ? event.timestamp : new Date().toISOString();
+  // Handle timestamp - backend returns LocalDateTime without timezone, treat as UTC
+  let timestamp = new Date().toISOString();
+  if (event.lastUpdate) {
+    // Append Z if not present to treat as UTC
+    timestamp = event.lastUpdate.endsWith('Z') ? event.lastUpdate : event.lastUpdate + 'Z';
+  } else if (event.timestamp) {
+    timestamp = typeof event.timestamp === 'string' ? event.timestamp : new Date().toISOString();
+  }
+
+  // Map backend status to frontend status
+  let status: 'online' | 'idle' | 'offline' | undefined;
+  const backendStatus = event.status?.toUpperCase();
+  if (backendStatus === 'ACTIVE') {
+    status = (event.speed || event.speedKph) > 5 ? 'online' : 'idle';
+  } else if (backendStatus === 'IDLE') {
+    status = 'idle';
+  } else {
+    status = 'offline';
+  }
 
   return {
     vehicleId: event.vehicleId || 'unknown',
-    lat: Number(event.lat) || 0,
-    lng: Number(event.lng) || 0,
-    speedKph: Number(event.speedKph) || 0,
+    lat: Number(event.lat || event.latitude) || 0,
+    lng: Number(event.lng || event.longitude) || 0,
+    speedKph: Number(event.speedKph || event.speed) || 0,
     heading: Number(event.heading) || 0,
     timestamp,
-    status: event.status?.toLowerCase() as 'online' | 'idle' | 'offline' | undefined,
+    status,
     region: event.region || 'Unknown',
   };
 }
 
 function mapAlertEvent(event: any): Alert {
-  const timestamp = typeof event.timestamp === 'string' ? event.timestamp : new Date().toISOString();
+  // Handle timestamp - append Z if not present to treat as UTC
+  let timestamp = new Date().toISOString();
+  if (event.timestamp) {
+    if (typeof event.timestamp === 'string') {
+      timestamp = event.timestamp.endsWith('Z') || event.timestamp.includes('+')
+        ? event.timestamp
+        : event.timestamp + 'Z';
+    }
+  }
 
   let details: Record<string, any> = {};
   if (event.details) {
@@ -56,16 +82,53 @@ function mapAlertEvent(event: any): Alert {
       details = event.details;
     }
   }
+  // Also try to parse message field as details (backend uses "message" for JSON details)
+  if (Object.keys(details).length === 0 && event.message) {
+    if (typeof event.message === 'string') {
+      try {
+        details = JSON.parse(event.message);
+      } catch (e) {
+        // Not JSON, use as-is
+        details = { message: event.message };
+      }
+    } else if (typeof event.message === 'object' && event.message !== null) {
+      details = event.message;
+    }
+  }
 
-  // Normalize alertType
+  // Normalize alertType and extract action for geofence alerts
   let alertType: Alert['alertType'] = 'SPEEDING';
   const rawType = event.alertType?.toUpperCase();
   if (rawType?.includes('GEOFENCE')) {
     alertType = 'GEOFENCE';
+    // Extract action from alertType (GEOFENCE_ENTER -> entered, GEOFENCE_EXIT -> exited)
+    if (rawType.includes('ENTER')) {
+      details.action = 'entered';
+    } else if (rawType.includes('EXIT')) {
+      details.action = 'exited';
+    } else {
+      details.action = details.action || 'entered'; // default
+    }
+    // Normalize geofence name field (backend may send geofence_name, name, zone, etc.)
+    if (!details.geofenceName) {
+      details.geofenceName = details.geofence_name || details.name || details.zone || details.geofence || 'Unknown zone';
+    }
   } else if (rawType === 'IDLE') {
     alertType = 'IDLE';
+    // Normalize idle minutes field (backend may send idle_minutes)
+    if (details.idle_minutes != null && details.idleMinutes == null) {
+      details.idleMinutes = details.idle_minutes;
+    }
   } else if (rawType === 'SPEEDING') {
     alertType = 'SPEEDING';
+    // Normalize speed fields - backend sends current_speed/avg_speed, frontend expects speedKph
+    if (details.speedKph == null) {
+      details.speedKph = details.current_speed || details.avg_speed || details.speed || details.speed_kph || 0;
+    }
+    // Normalize threshold field - backend sends threshold or speed_limit
+    if (details.threshold == null) {
+      details.threshold = details.speed_limit || 80; // default 80 kph if not provided
+    }
   } else {
     console.warn('Unknown alertType, defaulting to SPEEDING:', rawType);
   }
@@ -76,8 +139,8 @@ function mapAlertEvent(event: any): Alert {
     alertType,
     details,
     timestamp,
-    lat: Number(event.lat) || 0,
-    lng: Number(event.lng) || 0,
+    lat: Number(event.lat || event.latitude) || 0,
+    lng: Number(event.lng || event.longitude) || 0,
   };
 }
 
@@ -162,9 +225,12 @@ export function useVehicleStream() {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const calculateStatus = useCallback((vehicle: Vehicle): 'online' | 'idle' | 'offline' => {
-    const minutesSinceLastSeen = (Date.now() - new Date(vehicle.timestamp).getTime()) / 60000;
-    if (minutesSinceLastSeen > 30) return 'offline';
-    if (minutesSinceLastSeen > 10 || vehicle.speedKph < 5) return 'idle';
+    const secondsSinceLastSeen = (Date.now() - new Date(vehicle.timestamp).getTime()) / 1000;
+    // Offline: no readings for > 5 minutes
+    if (secondsSinceLastSeen > 300) return 'offline';
+    // Idle: no movement (speed < 5) for > 30 seconds, or no update for > 30s
+    if (secondsSinceLastSeen > 30 || vehicle.speedKph < 5) return 'idle';
+    // Online: received update within last 30 seconds and moving
     return 'online';
   }, []);
 
@@ -287,8 +353,8 @@ export function useAlertStream() {
             details: alertType === 'SPEEDING'
               ? { speedKph: 85 + Math.random() * 35, threshold: 80 }
               : alertType === 'IDLE'
-              ? { idleMinutes: 10 + Math.random() * 20 }
-              : { geofenceName: 'Warehouse A', action: Math.random() > 0.5 ? 'entered' : 'exited' },
+                ? { idleMinutes: 10 + Math.random() * 20 }
+                : { geofenceName: 'Warehouse A', action: Math.random() > 0.5 ? 'entered' : 'exited' },
             timestamp: new Date().toISOString(),
             lat: v.lat,
             lng: v.lng,

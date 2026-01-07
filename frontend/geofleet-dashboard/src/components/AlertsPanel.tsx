@@ -96,12 +96,21 @@ function AlertItem({ alert, onClick, isNew = false }: AlertItemProps) {
 
   const getPrimaryMessage = () => {
     switch (alert.alertType) {
-      case 'SPEEDING':
-        return `Exceeded speed limit by ${alert.details.excess || Math.round(alert.details.speedKph - alert.details.threshold)} kph`;
-      case 'GEOFENCE':
-        return `${alert.details.action === 'entered' ? 'Entered' : 'Exited'} ${alert.details.geofenceName}`;
-      case 'IDLE':
-        return `Idle for ${alert.details.idleMinutes} minutes`;
+      case 'SPEEDING': {
+        const speedKph = alert.details.speedKph || alert.details.speed || 0;
+        const threshold = alert.details.threshold || alert.details.speed_limit || 80;
+        const excess = alert.details.excess || Math.round(speedKph - threshold);
+        return `Exceeded speed limit by ${excess} kph`;
+      }
+      case 'GEOFENCE': {
+        const geofenceName = alert.details.geofenceName || alert.details.geofence_name || 'Unknown zone';
+        const action = alert.details.action || 'entered';
+        return `${action === 'entered' ? 'Entered' : 'Exited'} ${geofenceName}`;
+      }
+      case 'IDLE': {
+        const idleMinutes = alert.details.idleMinutes || alert.details.idle_minutes || 0;
+        return `Idle for ${idleMinutes} minutes`;
+      }
       default:
         return 'Unknown alert';
     }
@@ -144,10 +153,10 @@ function AlertItem({ alert, onClick, isNew = false }: AlertItemProps) {
           {alert.alertType === 'SPEEDING' && (
             <div className="flex items-center gap-4 mt-3 text-xs">
               <span className="text-muted-foreground">
-                Current: <span className="font-medium text-foreground">{alert.details.speedKph} kph</span>
+                Current: <span className="font-medium text-foreground">{alert.details.speedKph || alert.details.speed || 0} kph</span>
               </span>
               <span className="text-muted-foreground">
-                Limit: <span className="font-medium text-foreground">{alert.details.threshold} kph</span>
+                Limit: <span className="font-medium text-foreground">{alert.details.threshold || alert.details.speed_limit || 80} kph</span>
               </span>
             </div>
           )}

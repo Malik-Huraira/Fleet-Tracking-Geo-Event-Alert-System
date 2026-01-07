@@ -17,7 +17,7 @@ RUN npm install
 COPY . .
 
 # Expose port
-EXPOSE 8081
+EXPOSE 3000
 
 # Start dev server
 CMD ["npm", "run", "dev"]
