@@ -70,47 +70,47 @@ jobs:
       - name: Build & Push API Gateway
         uses: docker/build-push-action@v5
         with:
-          context: backend/microservices
-          file: backend/microservices/api-gateway/Dockerfile
+          context: backend/microservices/api-gateway
+          file: backend/microservices/api-gateway/Dockerfile.ci
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/geofleet-api-gateway:latest
 
       - name: Build & Push Vehicle Tracking Service
         uses: docker/build-push-action@v5
         with:
-          context: backend/microservices
-          file: backend/microservices/vehicle-tracking-service/Dockerfile
+          context: backend/microservices/vehicle-tracking-service
+          file: backend/microservices/vehicle-tracking-service/Dockerfile.ci
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/geofleet-vehicle-tracking:latest
 
       - name: Build & Push Geofence Service
         uses: docker/build-push-action@v5
         with:
-          context: backend/microservices
-          file: backend/microservices/geofence-service/Dockerfile
+          context: backend/microservices/geofence-service
+          file: backend/microservices/geofence-service/Dockerfile.ci
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/geofleet-geofence:latest
 
       - name: Build & Push Alert Processing Service
         uses: docker/build-push-action@v5
         with:
-          context: backend/microservices
-          file: backend/microservices/alert-processing-service/Dockerfile
+          context: backend/microservices/alert-processing-service
+          file: backend/microservices/alert-processing-service/Dockerfile.ci
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/geofleet-alert-processing:latest
 
       - name: Build & Push Query Service
         uses: docker/build-push-action@v5
         with:
-          context: backend/microservices
-          file: backend/microservices/query-service/Dockerfile
+          context: backend/microservices/query-service
+          file: backend/microservices/query-service/Dockerfile.ci
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/geofleet-query:latest
 
       - name: Build & Push Simulator Service
         uses: docker/build-push-action@v5
         with:
-          context: backend/microservices
-          file: backend/microservices/simulator-service/Dockerfile
+          context: backend/microservices/simulator-service
+          file: backend/microservices/simulator-service/Dockerfile.ci
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/geofleet-simulator:latest

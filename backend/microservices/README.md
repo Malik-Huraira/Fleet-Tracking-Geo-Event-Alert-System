@@ -8,8 +8,8 @@ GPS Devices
 vehicle-gps (Kafka Topic)
     ↓
 ┌──────────────────────────────────────────────────────────────┐
-│              🅰️ KAFKA STREAMS (FAST PATH)                    │
-│                                                              │
+│              🅰️ KAFKA STREAMS (FAST PATH)                
+|                                                              │                                                             
 │  ⚡ Speeding detection (windowed, 5s)                        │
 │  ⚡ Idle detection (windowed, 3min)                          │
 │  ⚡ In-memory, millisecond latency                           │

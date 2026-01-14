@@ -13,6 +13,7 @@ import reactor.core.publisher.Mono;
  * Global filter to handle SSE route timeouts.
  * Sets response timeout to -1 (no timeout) for SSE routes.
  */
+
 @Component
 @SuppressWarnings("null")
 public class SseTimeoutConfig implements GlobalFilter, Ordered {
