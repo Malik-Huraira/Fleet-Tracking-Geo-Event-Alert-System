@@ -223,16 +223,127 @@ export function useVehicleStream() {
   const [vehicles, setVehicles] = useState<Map<string, Vehicle>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 10;
+  const baseReconnectDelay = 1000; // 1 second
 
   const calculateStatus = useCallback((vehicle: Vehicle): 'online' | 'idle' | 'offline' => {
     const secondsSinceLastSeen = (Date.now() - new Date(vehicle.timestamp).getTime()) / 1000;
     // Offline: no readings for > 5 minutes
     if (secondsSinceLastSeen > 300) return 'offline';
-    // Idle: no movement (speed < 5) for > 30 seconds, or no update for > 30s
-    if (secondsSinceLastSeen > 30 || vehicle.speedKph < 5) return 'idle';
-    // Online: received update within last 30 seconds and moving
+    // Idle: no movement (speed < 5) AND update within last 30 seconds
+    if (vehicle.speedKph < 5 && secondsSinceLastSeen <= 30) return 'idle';
+    // Idle: no update for > 30 seconds (stale data)
+    if (secondsSinceLastSeen > 30) return 'idle';
+    // Online: received update within last 30 seconds and moving (speed >= 5)
     return 'online';
   }, []);
+
+  // Refresh vehicle data from server
+  const refreshVehicleData = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/vehicles/status/all`);
+      if (res.ok) {
+        const data = await res.json();
+        const map = new Map<string, Vehicle>();
+        (Array.isArray(data) ? data : []).forEach((v: any) => {
+          map.set(v.vehicleId, mapVehicleEvent(v));
+        });
+        setVehicles(map);
+        console.log('✅ Vehicle data refreshed after reconnection');
+      }
+    } catch (err) {
+      console.error('Failed to refresh vehicle data:', err);
+    }
+  }, []);
+
+  // Setup heartbeat timeout detection
+  const resetHeartbeatTimeout = useCallback(() => {
+    if (heartbeatTimeoutRef.current) {
+      clearTimeout(heartbeatTimeoutRef.current);
+    }
+    // Only set timeout if we've received at least one heartbeat
+    heartbeatTimeoutRef.current = setTimeout(() => {
+      console.warn('⚠️ Vehicle SSE heartbeat timeout - connection may be dead');
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      setIsConnected(false);
+    }, 60000); // 60 seconds (heartbeat is every 15s, allow 4+ missed)
+  }, []);
+
+  // Reconnect with exponential backoff
+  const reconnect = useCallback(() => {
+    if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+      console.error('❌ Max reconnection attempts reached');
+      return;
+    }
+
+    const delay = baseReconnectDelay * Math.pow(2, reconnectAttemptsRef.current);
+    console.log(`🔄 Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      connectSSE();
+    }, delay);
+  }, []);
+
+  // Connect to SSE
+  const connectSSE = useCallback(() => {
+    if (USE_MOCK_DATA) return;
+
+    try {
+      const es = new EventSource(`${SSE_URL}/vehicles`);
+      eventSourceRef.current = es;
+
+      es.onopen = () => {
+        console.log('✅ Vehicle SSE connected');
+        setIsConnected(true);
+        reconnectAttemptsRef.current = 0;
+        // Don't set heartbeat timeout on open - wait for first heartbeat
+        refreshVehicleData();
+      };
+
+      es.addEventListener('vehicle-update', (e: MessageEvent) => {
+        resetHeartbeatTimeout();
+        try {
+          const data = JSON.parse(e.data);
+          const vehicle = mapVehicleEvent(data);
+          setVehicles(prev => new Map(prev).set(vehicle.vehicleId, vehicle));
+        } catch (err) {
+          console.error('Failed to parse vehicle update:', err);
+        }
+      });
+
+      es.addEventListener('heartbeat', () => {
+        resetHeartbeatTimeout();
+        console.log('❤️ Vehicle SSE heartbeat received');
+      });
+
+      es.addEventListener('message', (e: MessageEvent) => {
+        // Fallback for any unhandled events
+        resetHeartbeatTimeout();
+        console.log('📨 Vehicle SSE message received:', e.data?.substring(0, 50));
+      });
+
+      es.onerror = () => {
+        console.error('❌ Vehicle SSE error');
+        setIsConnected(false);
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
+        reconnectAttemptsRef.current++;
+        reconnect();
+      };
+    } catch (err) {
+      console.error('Failed to create EventSource:', err);
+      reconnectAttemptsRef.current++;
+      reconnect();
+    }
+  }, [reconnect, resetHeartbeatTimeout, refreshVehicleData]);
 
   // Initial load
   useEffect(() => {
@@ -244,17 +355,8 @@ export function useVehicleStream() {
       return;
     }
 
-    fetch(`${API_BASE_URL}/vehicles/status/all`)
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        const map = new Map<string, Vehicle>();
-        (Array.isArray(data) ? data : []).forEach((v: any) => {
-          map.set(v.vehicleId, mapVehicleEvent(v));
-        });
-        setVehicles(map);
-      })
-      .catch(err => console.error('Failed to load initial vehicles:', err));
-  }, []);
+    refreshVehicleData();
+  }, [refreshVehicleData]);
 
   // SSE connection
   useEffect(() => {
@@ -279,36 +381,21 @@ export function useVehicleStream() {
       return () => clearInterval(interval);
     }
 
-    const es = new EventSource(`${SSE_URL}/vehicles`);
-    eventSourceRef.current = es;
-
-    es.onopen = () => {
-      console.log('✅ Vehicle SSE connected');
-      setIsConnected(true);
-    };
-
-    es.addEventListener('vehicle-update', (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data);
-        const vehicle = mapVehicleEvent(data);
-        setVehicles(prev => new Map(prev).set(vehicle.vehicleId, vehicle));
-      } catch (err) {
-        console.error('Failed to parse vehicle update:', err);
-      }
-    });
-
-    es.addEventListener('keepalive', () => console.trace('❤️ Vehicle SSE heartbeat'));
-
-    es.onerror = () => {
-      console.error('❌ Vehicle SSE error');
-      setIsConnected(false);
-    };
+    connectSSE();
 
     return () => {
-      es.close();
-      eventSourceRef.current = null;
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (heartbeatTimeoutRef.current) {
+        clearTimeout(heartbeatTimeoutRef.current);
+      }
     };
-  }, []);
+  }, [connectSSE]);
 
   const vehicleArray = Array.from(vehicles.values()).map(v => ({
     ...v,
@@ -331,6 +418,106 @@ export function useAlertStream() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 10;
+  const baseReconnectDelay = 1000; // 1 second
+
+  // Setup heartbeat timeout detection
+  const resetHeartbeatTimeout = useCallback(() => {
+    if (heartbeatTimeoutRef.current) {
+      clearTimeout(heartbeatTimeoutRef.current);
+    }
+    // Only set timeout if we've received at least one heartbeat
+    heartbeatTimeoutRef.current = setTimeout(() => {
+      console.warn('⚠️ Alert SSE heartbeat timeout - connection may be dead');
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      setIsConnected(false);
+    }, 60000); // 60 seconds (heartbeat is every 15s, allow 4+ missed)
+  }, []);
+
+  // Reconnect with exponential backoff
+  const reconnect = useCallback(() => {
+    if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+      console.error('❌ Max reconnection attempts reached');
+      return;
+    }
+
+    const delay = baseReconnectDelay * Math.pow(2, reconnectAttemptsRef.current);
+    console.log(`🔄 Reconnecting alerts in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      connectSSE();
+    }, delay);
+  }, []);
+
+  // Connect to SSE
+  const connectSSE = useCallback(() => {
+    if (USE_MOCK_DATA) return;
+
+    try {
+      console.log('🌐 Connecting to real SSE alerts...');
+      const es = new EventSource(`${SSE_URL}/alerts`);
+      eventSourceRef.current = es;
+
+      es.onopen = () => {
+        console.log('✅ Alert SSE connected');
+        setIsConnected(true);
+        reconnectAttemptsRef.current = 0;
+        // Don't set heartbeat timeout on open - wait for first heartbeat
+      };
+
+      es.addEventListener('alert', (e: MessageEvent) => {
+        resetHeartbeatTimeout();
+        console.log('📩 Received alert event raw:', e.data);
+        try {
+          const data = JSON.parse(e.data);
+          const alert = mapAlertEvent(data);
+          console.log('✅ Mapped alert:', alert);
+          setAlerts(prev => [alert, ...prev].slice(0, 100));
+        } catch (err) {
+          console.error('❌ Failed to parse alert event:', err, 'raw data:', e.data);
+        }
+      });
+
+      es.addEventListener('message', (e: MessageEvent) => {
+        resetHeartbeatTimeout();
+        console.log('📩 Received default message (fallback) raw:', e.data);
+        try {
+          const data = JSON.parse(e.data);
+          const alert = mapAlertEvent(data);
+          console.log('✅ Mapped fallback alert:', alert);
+          setAlerts(prev => [alert, ...prev].slice(0, 100));
+        } catch (err) {
+          console.error('❌ Failed to parse fallback message:', err, 'raw data:', e.data);
+        }
+      });
+
+      es.addEventListener('heartbeat', () => {
+        resetHeartbeatTimeout();
+        console.log('❤️ Alert SSE heartbeat received');
+      });
+
+      es.onerror = (err) => {
+        console.error('❌ Alert SSE error – reconnecting...', err);
+        setIsConnected(false);
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
+        reconnectAttemptsRef.current++;
+        reconnect();
+      };
+    } catch (err) {
+      console.error('Failed to create EventSource for alerts:', err);
+      reconnectAttemptsRef.current++;
+      reconnect();
+    }
+  }, [reconnect, resetHeartbeatTimeout]);
 
   useEffect(() => {
     if (USE_MOCK_DATA) {
@@ -368,51 +555,21 @@ export function useAlertStream() {
       return () => clearInterval(interval);
     }
 
-    console.log('🌐 Connecting to real SSE alerts...');
-    const es = new EventSource(`${SSE_URL}/alerts`);
-    eventSourceRef.current = es;
-
-    es.onopen = () => {
-      console.log('✅ Alert SSE connected');
-      setIsConnected(true);
-    };
-
-    es.addEventListener('alert', (e: MessageEvent) => {
-      console.log('📩 Received alert event raw:', e.data);
-      try {
-        const data = JSON.parse(e.data);
-        const alert = mapAlertEvent(data);
-        console.log('✅ Mapped alert:', alert);
-        setAlerts(prev => [alert, ...prev].slice(0, 100));
-      } catch (err) {
-        console.error('❌ Failed to parse alert event:', err, 'raw data:', e.data);
-      }
-    });
-
-    es.addEventListener('message', (e: MessageEvent) => {
-      console.log('📩 Received default message (fallback) raw:', e.data);
-      try {
-        const data = JSON.parse(e.data);
-        const alert = mapAlertEvent(data);
-        console.log('✅ Mapped fallback alert:', alert);
-        setAlerts(prev => [alert, ...prev].slice(0, 100));
-      } catch (err) {
-        console.error('❌ Failed to parse fallback message:', err, 'raw data:', e.data);
-      }
-    });
-
-    es.addEventListener('keepalive', () => console.trace('❤️ Alert SSE heartbeat'));
-
-    es.onerror = (err) => {
-      console.error('❌ Alert SSE error – reconnecting...', err);
-      setIsConnected(false);
-    };
+    connectSSE();
 
     return () => {
-      es.close();
-      eventSourceRef.current = null;
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (heartbeatTimeoutRef.current) {
+        clearTimeout(heartbeatTimeoutRef.current);
+      }
     };
-  }, []);
+  }, [connectSSE]);
 
   const getAlertsByVehicleId = useCallback(
     (id: string) => alerts.filter(a => a.vehicleId === id),

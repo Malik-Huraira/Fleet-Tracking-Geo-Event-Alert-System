@@ -1,0 +1,239 @@
+\documentclass[10pt, letterpaper]{article}
+
+\usepackage[
+    ignoreheadfoot,
+    top=0.5 cm,
+    bottom=0.5 cm,
+    left=1.2 cm,
+    right=1.2 cm,
+    footskip=0.3 cm
+]{geometry}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage[dvipsnames]{xcolor}
+\definecolor{primaryColor}{RGB}{0, 0, 0}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage{amsmath}
+\usepackage[
+    pdftitle={M. Abu Huraira's CV},
+    pdfauthor={M. Abu Huraira},
+    pdfcreator={LaTeX with RenderCV},
+    colorlinks=true,
+    urlcolor=primaryColor
+]{hyperref}
+\usepackage[pscoord]{eso-pic}
+\usepackage{calc}
+\usepackage{bookmark}
+\usepackage{changepage}
+\usepackage{paracol}
+\usepackage{ifthen}
+\usepackage{needspace}
+\usepackage{iftex}
+
+\ifPDFTeX
+\input{glyphtounicode}
+\pdfgentounicode=1
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\fi
+
+\usepackage{charter}
+\usepackage{ragged2e}
+
+\raggedright
+\AtBeginEnvironment{adjustwidth}{\partopsep0pt}
+\pagestyle{empty}
+\setcounter{secnumdepth}{0}
+\setlength{\parindent}{0pt}
+\setlength{\topskip}{0pt}
+\setlength{\columnsep}{0.15cm}
+\pagenumbering{gobble}
+
+\titleformat{\section}{\needspace{3\baselineskip}\normalfont\large}{}{0pt}{}[\vspace{0.5pt}\titlerule]
+\titlespacing{\section}{-1pt}{0.08 cm}{0.08 cm}
+
+\renewcommand\labelitemi{$\vcenter{\hbox{\small$\bullet$}}$}
+\newenvironment{highlights}{
+    \begin{itemize}[
+        topsep=0.05 cm,
+        parsep=0.05 cm,
+        partopsep=0pt,
+        itemsep=0pt,
+        leftmargin=0 cm + 10pt
+    ]
+}{
+    \end{itemize}
+}
+
+\newenvironment{onecolentry}{
+    \begin{adjustwidth}{0 cm + 0.00001 cm}{0 cm + 0.00001 cm}
+}{
+    \end{adjustwidth}
+}
+
+\newenvironment{twocolentry}[2][]{
+    \begin{onecolentry}
+    \def\secondColumn{#2}
+    \setcolumnwidth{\fill, 4.5 cm}
+    \begin{paracol}{2}
+}{
+    \switchcolumn \raggedleft \secondColumn
+    \end{paracol}
+    \end{onecolentry}
+}
+
+\newenvironment{header}{
+    \setlength{\topsep}{0pt}\par\kern\topsep\centering\linespread{1.5}
+}{
+    \par\kern\topsep
+}
+
+\begin{document}
+
+\begin{header}
+    \fontsize{20 pt}{20 pt}\selectfont M. Abu Huraira
+
+    \vspace{2 pt}
+
+    \normalsize
+    \kern 5.0 pt%
+    \mbox{\href{tel:+923148968004}{{{+92-314-8968004}}}}%
+    \kern 5.0 pt%
+    •
+    \kern 5.0 pt%
+    \mbox{\href{mailto:malikhuraira123@gmail.com}{{\fontsize{11}{13}\selectfont{malikhuraira123@gmail.com}}}}%
+    \kern 5.0 pt%
+    •
+    \kern 5.0 pt%
+    \mbox{\href{https://linkedin.com/in/muhammad-abu-huraira1}{\textcolor{blue}{{\fontsize{11}{13}\selectfont LinkedIn}}}}%
+    \kern 5.0 pt%
+    •
+    \kern 5.0 pt%
+    \mbox{\href{https://github.com/Malik-Huraira}{\textcolor{blue}{{\fontsize{11}{13}\selectfont GitHub}}}}%
+\end{header}
+
+\section{Summary}
+\begin{onecolentry}
+    \fontsize{9.5}{11}\selectfont \justifying
+    Backend Software Engineer with hands-on experience in scalable microservices and real-time systems. Specialized in Java/Spring Boot, Apache Kafka, PostGIS, and Docker with expertise in distributed systems and event-driven architectures.
+\end{onecolentry}
+\vspace{0.05 cm}
+
+\section{Skills}
+\begin{onecolentry}
+    \fontsize{9.5}{11}\selectfont \textbf{\textit{Languages \& Frameworks:}} Java, Spring Boot, Spring Cloud Gateway, Node.js, RESTful APIs, Microservices
+\end{onecolentry}
+\vspace{0.05cm}
+\begin{onecolentry}
+    \fontsize{9.5}{11}\selectfont \textbf{\textit{Databases:}} PostgreSQL, PostGIS, MySQL, MongoDB
+\end{onecolentry}
+\vspace{0.05cm}
+\begin{onecolentry}
+    \fontsize{9.5}{11}\selectfont \textbf{\textit{Messaging \& Streaming:}} Apache Kafka, Kafka Streams, RocksDB, Event-Driven Systems
+\end{onecolentry}
+\vspace{0.05cm}
+\begin{onecolentry}
+    \fontsize{9.5}{11}\selectfont \textbf{\textit{DevOps \& Tooling:}} Docker, Docker Compose, Git, CI/CD, Prometheus
+\end{onecolentry}
+\vspace{0.05cm}
+
+\section{Experience}
+\begin{twocolentry}{\textit{Oct 2025 --- Present}}
+    {\fontsize{10}{12}\selectfont \textbf{\href{https://www.linkedin.com/company/evamp}{\textcolor{blue}{Evamp \& Saanga}}} -- Java Developer Intern}
+\end{twocolentry}
+\begin{onecolentry}
+    \fontsize{9.5}{11}\selectfont \justifying
+    \begin{highlights}
+        \item Architected microservices fleet tracking platform using Spring Boot and Spring Cloud Gateway.
+        \item Built real-time GPS tracking with SSE streaming and Kafka-based event processing.
+        \item Developed geofencing services using PostGIS spatial queries for real-time detection.
+        \item Implemented stateful Kafka Streams pipelines with RocksDB for alert processing.
+        \item Containerized services with Docker Compose and Prometheus monitoring.
+    \end{highlights}
+\end{onecolentry}
+\vspace{0.05 cm}
+
+\begin{twocolentry}{\textit{Mar 2025 --- Sep 2025}}
+    {\fontsize{10}{12}\selectfont \textbf{\href{https://www.linkedin.com/company/aksa-sds}{\textcolor{blue}{AKSA-SDS}}} -- Backend Engineer Intern}
+\end{twocolentry}
+\begin{onecolentry}
+    \fontsize{9.5}{11}\selectfont \justifying
+    \begin{highlights}
+        \item Developed scalable REST APIs for e-commerce microservices backend.
+        \item Implemented JWT authentication, RBAC, and secure session handling.
+        \item Reduced API latency 40\% through Redis caching and database indexing optimization.
+        \item Containerized services with Docker for consistent deployment environments.
+    \end{highlights}
+\end{onecolentry}
+\vspace{0.05 cm}
+
+\begin{twocolentry}{\textit{Dec 2024 --- Feb 2025}}
+    {\fontsize{10}{12}\selectfont \textbf{\href{https://www.linkedin.com/company/lean-automation}{\textcolor{blue}{LEAN Automation}}} -- Backend Engineer Intern}
+\end{twocolentry}
+\begin{onecolentry}
+    \fontsize{9.5}{11}\selectfont \justifying
+    \begin{highlights}
+        \item Built backend services using Java Spring Boot with clean architecture principles.
+        \item Designed RESTful endpoints with proper HTTP methods and error handling.
+        \item Integrated PostgreSQL and MongoDB databases based on access patterns.
+    \end{highlights}
+\end{onecolentry}
+\vspace{0.05 cm}
+
+\section{Education}
+\begin{twocolentry}{\textit{Mar 2021 --- Feb 2025}}
+    \textbf{COMSATS University Islamabad, Abbottabad campus} \\
+    BS Software Engineering
+\end{twocolentry}
+\vspace{0.1 cm}
+
+\section{Projects}
+\begin{twocolentry}{
+    }
+    {\fontsize{11}{13}\selectfont \textbf{\textit{\href{https://github.com/Malik-Huraira/fleet-tracking-geo-alert}{\textcolor{blue}{GeoFleet — Real-Time Fleet Tracking}}}}}
+\end{twocolentry}
+\vspace{0.10 cm}
+\begin{onecolentry}
+    \justifying
+    \begin{highlights}
+        \item Full microservices architecture: API Gateway, Vehicle Tracking, Geofence, Alert services.
+        \item Real-time GPS tracking using Kafka (6 partitions) and SSE streaming.
+        \item Kafka Streams with RocksDB for stateful alert processing and analytics.
+        \item React dashboard with Leaflet maps; deployed via Docker Compose with Prometheus monitoring.
+    \end{highlights}
+\end{onecolentry}
+\vspace{0.1 cm}
+
+\begin{twocolentry}{
+    }
+    {\fontsize{11}{13}\selectfont \textbf{\textit{\href{https://github.com/Malik-Huraira/EcommerceWeb}{\textcolor{blue}{E-Commerce Web Platform}}}}}
+\end{twocolentry}
+\vspace{0.10 cm}
+\begin{onecolentry}
+    \justifying
+    \begin{highlights}
+        \item Full-stack e-commerce solution with product catalog, ordering, and inventory services.
+        \item JWT authentication with RBAC, Redis caching, and optimized MySQL/MongoDB schemas.
+        \item Dockerized services with CI/CD automation for build, test, and deployment.
+    \end{highlights}
+\end{onecolentry}
+\vspace{0.1 cm}
+
+\begin{twocolentry}{
+    }
+    {\fontsize{11}{13}\selectfont \textbf{\textit{AI-Powered Learning Management System}}}
+\end{twocolentry}
+\vspace{0.10 cm}
+\begin{onecolentry}
+    \justifying
+    \begin{highlights}
+        \item LMS with course management, assignments, progress tracking, and AI chatbot integration.
+        \item WebSocket-based real-time notifications for deadlines and grades.
+        \item Responsive UI ensuring accessibility on both desktop and mobile.
+    \end{highlights}
+\end{onecolentry}
+
+\end{document}

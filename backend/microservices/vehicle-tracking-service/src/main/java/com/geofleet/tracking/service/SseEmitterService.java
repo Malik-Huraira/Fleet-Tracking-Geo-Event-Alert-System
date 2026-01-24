@@ -19,8 +19,9 @@ import java.time.Duration;
 public class SseEmitterService {
 
     // Sink for broadcasting vehicle updates to all subscribers
-    // Using a larger buffer (256) to handle high-frequency updates
-    private final Sinks.Many<VehicleStatusDTO> vehicleSink = Sinks.many().multicast().onBackpressureBuffer(256);
+    // Using a larger buffer (1024) to handle high-frequency updates from 10+
+    // vehicles
+    private final Sinks.Many<VehicleStatusDTO> vehicleSink = Sinks.many().multicast().onBackpressureBuffer(1024);
 
     /**
      * Get SSE stream for /stream/vehicles endpoint using WebFlux.

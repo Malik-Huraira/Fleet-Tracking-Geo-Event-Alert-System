@@ -19,7 +19,8 @@ import java.time.Duration;
 public class AlertSseService {
 
     // Sink for broadcasting alerts to all subscribers
-    private final Sinks.Many<AlertEventDTO> alertSink = Sinks.many().multicast().onBackpressureBuffer();
+    // Using a larger buffer (1024) to handle high-frequency alerts
+    private final Sinks.Many<AlertEventDTO> alertSink = Sinks.many().multicast().onBackpressureBuffer(1024);
 
     /**
      * Get SSE stream for /stream/alerts endpoint using WebFlux.
